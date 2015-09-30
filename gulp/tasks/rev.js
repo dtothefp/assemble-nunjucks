@@ -23,7 +23,7 @@ export default function(gulp, plugins, config) {
       assemble.data({revData});
     });
 
-    return gulp.src(`${srcDir}/templates/images/*.{jpg,jpeg,png,svg}`)
+    return gulp.src(`${srcDir}/templates/img/*.{jpg,jpeg,png,svg}`)
       .pipe(rev())
       .pipe(through.obj(function(file, enc, cb) {
         let hash = file.revHash;

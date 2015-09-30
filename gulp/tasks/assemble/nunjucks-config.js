@@ -4,7 +4,7 @@ const config = {
   engine: 'nunjucks',
   requires: {
     nunjucks: nunjucks.configure({
-      watch: false
+      watch: true
     })
   }
 };

@@ -4,10 +4,16 @@ import dashToCamel from './dash-to-camel';
 import pkgInfo from '../../package';
 
 export default function(config) {
-  const globalBundleName = 'global';
-  const mainBundleName = 'main';
   const {ENV, library} = config;
   const isDev = ENV === 'development';
+  const scriptDir = 'js';
+  const {TRAVIS_BRANCH} = process.env;
+  const devBranch = 'devel';
+  const isMaster = TRAVIS_BRANCH === 'master';
+  const isDevRoot = TRAVIS_BRANCH === devBranch;
+  const globalBundleName = 'global';
+  const mainBundleName = 'main';
+
   const {
     devDependencies,
     dependencies,
@@ -17,26 +23,31 @@ export default function(config) {
   } = pkgInfo;
 
   const sources = {
-    srcDir: './src',
-    libraryName: library || dashToCamel(name.replace('@hfa/', ''), true),
-    testDir: './test',
-    taskDir: './gulp',
+    buckets: {
+      prod: 'campaign-contribute-prod',
+      dev: 'campaign-contribute-dev'
+    },
     buildDir: './dist',
     devHost: 'localhost',
+    internalHost: 'local.hfa.io',
     devPort: 8000,
-    hotPort: 8080,
     globalBundleName,
     mainBundleName,
-    entry: {
-      [mainBundleName]: ['./index.js'],
-      [globalBundleName]: ['./global.js']
-    }
+    entry: {},
+    hotPort: 8080,
+    libraryName: library || dashToCamel(name, true),
+    srcDir: './src',
+    taskDir: './gulp',
+    testDir: './test'
   };
+
+  sources.entry[globalBundleName] = ['./' + join(scriptDir, './global.js')];
+  sources.entry[mainBundleName] = ['./' + join(scriptDir, './index.js')];
 
   const utils = {
     addbase(...args) {
-      let base = [process.cwd()];
-      let allArgs = [...base, ...args];
+      const base = [process.cwd()];
+      const allArgs = [...base, ...args];
       return join(...allArgs);
     },
     getTaskName(task) {
@@ -54,12 +65,31 @@ export default function(config) {
     }
   };
 
-  const environment = {
-    branch: process.env.TRAVIS_BRANCH,
-    public_path: isDev ? '' : '',
-    link_path: isDev ? '' : '',
-    isDev: ENV === 'development'
+  let environment = {
+    asset_path: '', // path for assets => local_dev: '', dev: , prod:
+    link_path: TRAVIS_BRANCH ? 'TRAVIS_BRANCH' : '',
+    image_dir: 'img',
+    template_env: ENV,
+    isDev,
+    isMaster,
+    isDevRoot
   };
+
+  if (!isDev && TRAVIS_BRANCH) {
+    let devAssetPath = '';
+    const prodAssetPath = '';
+
+    // if branch is not `devel` or `master` add the branch name to the asset path
+    if (!isDevRoot && !isMaster) {
+      devAssetPath += `/${TRAVIS_BRANCH}`;
+    }
+
+    assign(environment, {
+      asset_path: !isMaster ? devAssetPath : prodAssetPath,
+      branch: TRAVIS_BRANCH,
+      link_path: isDevRoot || isMaster ? '' : `/${TRAVIS_BRANCH}` // for creating <a href={{link_path}}/something
+    });
+  }
 
   const pkg = {
     devDependencies: Object.keys(devDependencies),
@@ -69,20 +99,12 @@ export default function(config) {
     main
   };
 
-  const tasks = {
-    devTasks: [
-      'clean',
-      'browserSync'
-    ]
-  };
-
   return assign(
     {},
     config,
     {environment},
     {pkg},
     {sources},
-    {tasks},
     {utils}
   );
 }

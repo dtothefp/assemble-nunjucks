@@ -8,13 +8,14 @@ import {config as njConfig} from './nunjucks-config';
 import Plasma from 'plasma';
 
 export default function(gulp, plugins, config) {
-  const {assemble, browserSync} = plugins;
+  const {assemble, browserSync, gulpIf} = plugins;
   const {sources, utils, environment} = config;
-  const {srcDir, buildDir} = sources;
+  const {srcDir, buildDir, libraryName} = sources;
   const {addbase} = utils;
   const {extname} = plugins;
   const {isDev} = environment;
   const {requires} = njConfig;
+  const userName = process.cwd().split('/')[2];
   const plasma = new Plasma();
   const src = addbase(srcDir, 'templates/pages/**/*.html');
   //const ogRenameKey = assemble.option('renameKey');
@@ -37,7 +38,14 @@ export default function(gulp, plugins, config) {
   });
 
   assemble.engine('.html', function(content, options, fn) {
-    const opts = _.merge({}, options, {layout: 'default.html'}, {requires});
+    const opts = _.merge({}, options, {
+      layouts(fp) {
+        return `${addbase(srcDir, 'templates/layouts', fp)}.html`;
+      },
+      requires,
+      userName,
+      libraryName
+    });
     return consolidate.nunjucks.render(content, opts, fn);
   });
 
@@ -51,27 +59,38 @@ export default function(gulp, plugins, config) {
 
   assemble.snippets(addbase(srcDir, 'js/components/**/*.jsx'));
 
-  return () => {
-    let stream = assemble.src(src)
-        .pipe(extname())
-        .pipe(assemble.dest(buildDir))
-        .on('error', (err) => console.log(err));
+  if (!isDev) {
+    const manifestData = assemble.get('data').revData;
 
-    if (isDev) {
-      stream.pipe(browserSync.stream());
-    } else {
-      const manifestData = assemble.get('data').revData;
+    assemble.postRender(/\.html$/, (file, next) => {
+      file.content = Object.keys(manifestData).reduce((content, unrevd) => {
+        const revd = manifestData[unrevd];
+        return /\.map$/.test(revd) ? content : content.replace(new RegExp(unrevd, 'g'), revd);
+      }, file.content);
 
-      assemble.postRender(/\.html$/, (file, next) => {
-        file.content = Object.keys(manifestData).reduce((content, unrevd) => {
-          const revd = manifestData[unrevd];
-          return /\.map$/.test(revd) ? content : content.replace(new RegExp(unrevd, 'g'), revd);
-        }, file.content);
+      next();
+    });
+  }
 
-        next();
-      });
-    }
+  assemble.task('build', () => {
+    assemble.src(src)
+      .pipe(extname())
+      .pipe(assemble.dest(buildDir))
+      .pipe(gulpIf(isDev, browserSync.stream()))
+      .on('error', (err) => console.log(err));
+  });
 
-    return stream;
+  assemble.task('watch', ['build'], () => {
+    assemble.watch(addbase(srcDir, 'templates/**/*.html'), ['build']);
+  });
+
+  return (cb) => {
+    assemble.run(isDev ? ['build', 'watch'] : ['build'], () => {
+      if (typeof cb === 'function') {
+        const gulpCb = cb;
+        cb = null;
+        gulpCb();
+      }
+    });
   };
 }

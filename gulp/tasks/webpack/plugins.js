@@ -21,18 +21,13 @@ export default function(opts) {
     new webpack.ProvidePlugin({
       $: 'jquery',
       jQuery: 'jquery',
-      'window.jquery': 'jquery',
-      'fetch': 'imports?this=>global!exports?global.fetch!isomorphic-fetch',
-      'window.fetch': 'imports?this=>global!exports?global.fetch!isomorphic-fetch',
-      'global.fetch': 'imports?this=>global!exports?global.fetch!isomorphic-fetch'
+      'window.jquery': 'jquery'
     }),
     new webpack.NoErrorsPlugin(),
     new webpack.DefinePlugin({
       'process.env': {
         NODE_ENV: JSON.stringify(!isMaster && !isDevRoot ? 'development' : 'production'),
-        TEST_FILE: file ? JSON.stringify(file) : null,
-        BASE_URL: JSON.stringify(isMaster ? '/api/' : 'https://api.hfa.io/'),
-        GW_CLIENT_ID: JSON.stringify(isMaster ? '25def512a6857b7acd5c922796e923d25b631be064d1f4c217c0e438152dca6d' : 'SO/E+x58++2RGbil19qY9AjP2aZkPLb7EBAvlQ/oauGovBCney4uPKKaqtBJrbQOvXIdMLshLu+NBq79Q1a9pA==')
+        TEST_FILE: file ? JSON.stringify(file) : null
       }
     }),
     new ExtractTextPlugin(cssBundle, {

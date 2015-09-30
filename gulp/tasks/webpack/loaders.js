@@ -1,25 +1,11 @@
 import ExtractTextPlugin from 'extract-text-webpack-plugin';
-import dashToCamel from '../../config/dash-to-camel';
 
 export default function(opts) {
   const {expose, extract, includePaths, quick, DEBUG, TEST} = opts;
-  const {libraryName} = expose;
   const fileLoader = 'file-loader?name=[path][name].[ext]';
-  const userName = process.cwd().split('/')[2];
   let jsLoader = 'babel-loader?optional[]=runtime&stage=0';
   let jsxLoader = [];
   let sassLoader, cssLoader;
-
-  let htmlLoader = [
-    'file-loader?name=[path][name].[ext]',
-    'template-html-loader?' + [
-      'raw=true',
-      'engine=lodash',
-      `debug=${DEBUG}`,
-      `libraryName=${libraryName}`,
-      `userName=${dashToCamel(userName, true)}`
-    ].join('&')
-  ].join('!');
 
   let jsonLoader = ['json-loader'];
 
@@ -91,16 +77,12 @@ export default function(opts) {
   let loaders = [
     {
       test: /\.jsx?$/,
-      exclude: /node_modules\/(?!@hfa)/,
+      exclude: /node_modules/,
       loaders: jsxLoader
     },
     {
       test: /\.(jpe?g|gif|png|ico|ttf|eot|svg|woff(2)?)(\?[a-z0-9]+)?$/,
       loader: fileLoader
-    },
-    {
-      test: /\.html$/,
-      loader: htmlLoader
     },
     {
       test: /\.json$/,

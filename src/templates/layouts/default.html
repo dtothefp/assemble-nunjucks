@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <title>{{libraryName}}</title>
+  <link rel="stylesheet" href="{{environment.asset_path}}/css/main.css">
+  <script>window.userName = "{{userName}}"</script>
+</head>
+<body>
+  <div class="body">
+    {% block main %}
+    {% endblock %}
+  </div>
+  <script src="{{environment.asset_path}}/js/vendors.js"></script>
+  <script src="{{environment.asset_path}}/js/global.js"></script>
+  <script src="{{environment.asset_path}}/js/main.js"></script>
+</body>
+</html>
+

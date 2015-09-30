@@ -6,11 +6,13 @@ const {isDev} = environment;
 const {testDir, buildDir} = sources;
 const {addbase} = utils;
 
+gulp.task('assemble', tasks.assemble);
 gulp.task('browser-sync', tasks.browserSync);
 gulp.task('clean', tasks.clean);
 gulp.task('lint:test', tasks.eslint);
 gulp.task('lint:build', tasks.eslint);
 gulp.task('lint', ['lint:test', 'lint:build']);
+gulp.task('rev', tasks.rev);
 gulp.task('webpack:global', tasks.webpack);
 gulp.task('webpack:main', tasks.webpack);
 gulp.task('webpack', ['webpack:global', 'webpack:main']);
@@ -25,14 +27,15 @@ gulp.task('build', (cb) => {
   if (isDev) {
     $.sequence(
       ['clean', 'lint'],
-      'webpack',
+      ['assemble', 'webpack'],
       'browser-sync',
       cb
     );
   } else {
     $.sequence(
       ['clean', 'lint'],
-      'webpack',
+      ['rev', 'webpack'],
+      'assemble',
       cb
     );
   }
@@ -91,7 +94,7 @@ gulp.task('test:tunnel:live', (cb) => {
 gulp.task('default', ['build']);
 
 gulp.task('watch', ['build'], () => {
-  gulp.watch(addbase(buildDir, '{js/,css/,}**/*.{js,css,html}'), $.browserSync.reload);
+  gulp.watch(addbase(buildDir, '{js/,css/}**/*.{js,css}'), $.browserSync.reload);
   gulp.watch([
     addbase(testDir, '**/*.js'),
     addbase(buildDir, '**/*.js')
