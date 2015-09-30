@@ -1,15 +1,4 @@
-### HFA Frontend Build Boilerplate
-
-#### Install
-```sh
-git clone git@github.com:HillaryClinton/frontend-boilerplate.git
-rm -rf .git
-git init
-git remote add origin <whatevs>
-git remote add upstream git@github.com:HillaryClinton/frontend-boilerplate.git # allow to keep in sync with boilerplate updates
-npm i -g gulp
-npm i
-```
+### Frontend Build Boilerplate
 
 ![](http://i.imgur.com/hsQwU0a.gif)
 
@@ -38,7 +27,7 @@ gulp test:tunnel:live # run local server in separate tab
 ```
 
 #### Entry Point / Source of Truth
-- https://github.com/HillaryClinton/frontend-boilerplate/blob/master/gulp/config/index.js
+- `gulp/config/index.js`
 
 #### Structure
 ```sh
@@ -103,12 +92,3 @@ gulp test:tunnel:live # run local server in separate tab
     ├── global.js # served in `dev` by BrowserSync
     └── global.js.map
 ```
-
-
-*TODO:*
-- [x] Add ability to build es6 project for "backend"
-- [ ] Add docs on entry points
-- [ ] Get Karma working on Browserstack
-- [ ] Add Mocha for `node` "backend" testing
-- [ ] Add generic `.travis.yml`
-- [ ] Add [Code Coverage](https://www.youtube.com/watch?v=P-1ZZkpEmQA)
