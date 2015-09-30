@@ -84,13 +84,5 @@ export default function(gulp, plugins, config) {
     assemble.watch(addbase(srcDir, 'templates/**/*.html'), ['build']);
   });
 
-  return (cb) => {
-    assemble.run(isDev ? ['build', 'watch'] : ['build'], () => {
-      if (typeof cb === 'function') {
-        const gulpCb = cb;
-        cb = null;
-        gulpCb();
-      }
-    });
-  };
+  return () => assemble.run(isDev ? ['build', 'watch'] : ['build']);
 }
