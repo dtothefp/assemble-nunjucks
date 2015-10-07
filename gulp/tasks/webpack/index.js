@@ -1,19 +1,19 @@
 import {assign, isFunction, isUndefined} from 'lodash';
 import webpack from 'webpack';
+import WebpackDevServer from 'webpack-dev-server';
 import makeConfig from './make-webpack-config';
 
 export default function(gulp, plugins, config) {
   const {sources, utils, environment} = config;
-  const {mainBundleName} = sources;
   const {isDev, asset_path, branch} = environment;
   const {addbase, getTaskName} = utils;
-  const {buildDir, hotPort, devPort, devHost} = sources;
-  const {gutil} = plugins;
-  let publicPath;
+  const {mainBundleName, buildDir, hotPort, devPort, devHost} = sources;
+  const {gutil, app} = plugins;
 
   return (cb) => {
     const task = getTaskName(gulp.currentTask);
     const isMainTask = task === mainBundleName;
+    let publicPath;
 
     if (isMainTask) {
       publicPath = '/';
@@ -23,7 +23,7 @@ export default function(gulp, plugins, config) {
       /*eslint-enable */
     }
 
-    const webpackConfig = makeConfig(assign({}, config, {isMainTask, publicPath}));
+    const webpackConfig = makeConfig(assign({}, config, {isMainTask, publicPath, app}));
     const compiler = webpack(webpackConfig);
 
     function logger(err, stats) {
@@ -52,7 +52,15 @@ export default function(gulp, plugins, config) {
         [errors, warnings].forEach((stat, i) => {
           let type = i ? 'warning' : 'error';
           if (stat.length) {
-            gutil.log(`[webpack: ${task} bundle ${type}]`, stats.toString());
+            const [statStr] = stat;
+            /*eslint-disable*/
+            const [first, ...rest] = statStr.split('\n\n');
+            /*eslint-enable*/
+            if (rest.length) {
+              gutil.log(`[webpack: ${task} bundle ${type}]\n`, rest.join('\n\n'));
+            } else {
+              gutil.log(`[webpack: ${task} bundle ${type}]`, stats.toString());
+            }
           }
         });
 
@@ -71,20 +79,13 @@ export default function(gulp, plugins, config) {
     });
 
     if (isDev) {
-      if (task === 'global') {
-        compiler.watch({
-          aggregateTimeout: 300,
-          poll: true
-        }, logger);
-      } else {
-        let WebpackDevServer = require('webpack-dev-server');
-
+      if (isMainTask) {
         new WebpackDevServer(compiler, {
           contentBase: addbase(buildDir),
           // TODO: figure out why can't use publicPath as absolute path when proxying wepback dev server
           publicPath,
           hot: true,
-          quiet: false,
+          quiet: true,
           noInfo: true,
           watchOptions: {
             aggregateTimeout: 300,
@@ -93,6 +94,11 @@ export default function(gulp, plugins, config) {
           headers: { 'X-Custom-Header': 'yes' },
           stats: { colors: true }
         }).listen(hotPort, devHost, () => {});
+      } else {
+        compiler.watch({
+          aggregateTimeout: 300,
+          poll: true
+        }, logger);
       }
     } else {
       compiler.run(logger);

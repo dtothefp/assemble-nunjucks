@@ -1,9 +1,17 @@
 import {assign} from 'lodash';
 import {join} from 'path';
+import gutil, {PluginError} from 'gulp-util';
 import dashToCamel from './dash-to-camel';
 import pkgInfo from '../../package';
+import makePaths from './make-paths';
 
 export default function(config) {
+  const shouldRev = false;
+  const shouldUpload = false;
+  let devAssetPath = '/';
+  const prodAssetPath = '/';
+  const globalBundleName = 'global';
+  const mainBundleName = 'main';
   const {ENV, library} = config;
   const isDev = ENV === 'development';
   const scriptDir = 'js';
@@ -11,8 +19,6 @@ export default function(config) {
   const devBranch = 'devel';
   const isMaster = TRAVIS_BRANCH === 'master';
   const isDevRoot = TRAVIS_BRANCH === devBranch;
-  const globalBundleName = 'global';
-  const mainBundleName = 'main';
 
   const {
     devDependencies,
@@ -24,30 +30,37 @@ export default function(config) {
 
   const sources = {
     buckets: {
-      prod: 'campaign-contribute-prod',
-      dev: 'campaign-contribute-dev'
+      prod: '', //enter prod bucket here
+      dev: '' //enter dev bucket here
     },
+    scriptDir,
+    srcDir: './src',
+    libraryName: library || dashToCamel(name.replace('@hfa/', ''), true),
+    testDir: './test',
+    taskDir: './gulp',
     buildDir: './dist',
     devHost: 'localhost',
-    internalHost: 'local.hfa.io',
     devPort: 8000,
+    hotPort: 8080,
+    includePaths: [],
     globalBundleName,
     mainBundleName,
-    entry: {},
-    hotPort: 8080,
-    libraryName: library || dashToCamel(name, true),
-    srcDir: './src',
-    taskDir: './gulp',
-    testDir: './test'
+    entry: {
+      [mainBundleName]: [`./${scriptDir}/index.js`],
+      [globalBundleName]: [`./${scriptDir}/global.js`]
+    }
   };
 
-  sources.entry[globalBundleName] = ['./' + join(scriptDir, './global.js')];
-  sources.entry[mainBundleName] = ['./' + join(scriptDir, './index.js')];
+  const webpackConfig = {
+    alias: {
+      fetch: 'isomorphic-fetch'
+    }
+  };
 
   const utils = {
     addbase(...args) {
-      const base = [process.cwd()];
-      const allArgs = [...base, ...args];
+      let base = [process.cwd()];
+      let allArgs = [...base, ...args];
       return join(...allArgs);
     },
     getTaskName(task) {
@@ -62,13 +75,22 @@ export default function(config) {
       }
 
       return ret;
+    },
+    logError({err, plugin}) {
+      const pluginErr = new PluginError(plugin, err, {showStack: true});
+      gutil.log(gutil.colors.magenta(pluginErr.plugin));
+      gutil.log(gutil.colors.blue(pluginErr.message));
+      gutil.log(pluginErr.stack);
+      process.exit(1);
     }
   };
 
-  let environment = {
-    asset_path: '', // path for assets => local_dev: '', dev: , prod:
+  const environment = {
+    asset_path: '', // path for assets => local_dev: '', dev: hrc-assets.hfa.io/contribute, prod: a.hrc.onl/contribute
     link_path: TRAVIS_BRANCH ? 'TRAVIS_BRANCH' : '',
     image_dir: 'img',
+    shouldRev,
+    shouldUpload,
     template_env: ENV,
     isDev,
     isMaster,
@@ -76,9 +98,6 @@ export default function(config) {
   };
 
   if (!isDev && TRAVIS_BRANCH) {
-    let devAssetPath = '';
-    const prodAssetPath = '';
-
     // if branch is not `devel` or `master` add the branch name to the asset path
     if (!isDevRoot && !isMaster) {
       devAssetPath += `/${TRAVIS_BRANCH}`;
@@ -99,12 +118,37 @@ export default function(config) {
     main
   };
 
+  const paths = {
+    fileLoader: [
+      'file-loader?name=[path][name].[ext]',
+      'file-loader?name=[path][hash]-[name].[ext]'
+    ],
+    cssBundleName: [
+      'css/[name].css',
+      'css/[chunkhash]-[name].css'
+    ],
+    jsBundleName: [
+      '[name].js',
+      '[chunkhash]-[name].js'
+    ]
+  };
+
+  const tasks = {
+    devTasks: [
+      'clean',
+      'browserSync'
+    ]
+  };
+
   return assign(
     {},
     config,
     {environment},
     {pkg},
     {sources},
-    {utils}
+    {tasks},
+    {utils},
+    {paths: makePaths({isDev, shouldRev, paths})},
+    {webpackConfig}
   );
 }

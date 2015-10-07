@@ -1,22 +1,34 @@
+import {join} from 'path';
 import ExtractTextPlugin from 'extract-text-webpack-plugin';
 import webpack from 'webpack';
-import statsPlugin from './stats-plugins';
+import statsPlugin from './stats-plugin';
 
 export default function(opts) {
-  const {DEBUG, TEST, file, environment, isMainTask} = opts;
-  const {isDevRoot, isMaster} = environment;
+  const {
+    app,
+    environment,
+    file,
+    isMainTask,
+    paths,
+    sources,
+    release,
+    DEBUG,
+    TEST
+  } = opts;
+  const {scriptDir} = sources;
+  const {shouldRev} = environment;
+  const {cssBundleName, jsBundleName} = paths;
   const {CommonsChunkPlugin} = webpack.optimize;
-  let cssBundle = DEBUG || TEST ? 'css/[name].css' : 'css/[chunkhash]-[name].css';
 
-  let commons = [
+  const commons = [
     new CommonsChunkPlugin({
       name: 'vendors',
-      filename: DEBUG || TEST ? 'js/[name].js' : 'js/[chunkhash]-[name].js',
+      filename: join(scriptDir, jsBundleName),
       minChunks: Infinity
     })
   ];
 
-  let plugins = [
+  const plugins = [
     new webpack.optimize.OccurenceOrderPlugin(),
     new webpack.ProvidePlugin({
       $: 'jquery',
@@ -26,26 +38,41 @@ export default function(opts) {
     new webpack.NoErrorsPlugin(),
     new webpack.DefinePlugin({
       'process.env': {
-        NODE_ENV: JSON.stringify(!isMaster && !isDevRoot ? 'development' : 'production'),
+        NODE_ENV: JSON.stringify(DEBUG || TEST ? 'development' : 'production'),
         TEST_FILE: file ? JSON.stringify(file) : null
       }
     }),
-    new ExtractTextPlugin(cssBundle, {
+    new ExtractTextPlugin(cssBundleName, {
       allChunks: true
     })
   ];
 
-  let prodPlugins = [
-    new webpack.optimize.DedupePlugin(),
-    statsPlugin
+  const prodPlugins = [
+    new webpack.optimize.DedupePlugin()
   ];
 
-  if (!DEBUG && !TEST) {
-    plugins.push(...prodPlugins);
-  }
+  const releasePlugins = [
+    new webpack.BannerPlugin(
+      'try{require("source-map-support").install();}\ncatch(err) {}',
+      { raw: true, entryOnly: false }
+    )
+  ];
 
   if (isMainTask) {
     plugins.push(...commons);
   }
-  return plugins;
+
+  if (shouldRev) {
+    prodPlugins.push(statsPlugin(app));
+  }
+
+  if (!DEBUG || !TEST) {
+    plugins.push(...prodPlugins);
+  }
+
+  if (release) {
+    plugins.push(...releasePlugins);
+  }
+
+  return {plugins};
 }

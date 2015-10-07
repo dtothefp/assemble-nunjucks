@@ -1,22 +1,24 @@
-import autoprefixer from 'autoprefixer';
 import makeEslintConfig from 'open-eslint-config';
 import {assign, merge, omit} from 'lodash';
 import {join} from 'path';
 import webpack from 'webpack';
+import autoprefixer from 'autoprefixer';
 import formatter from 'eslint-friendly-formatter';
-import makeLoaders from './loaders';
-import makePlugins from './plugins';
+import getCommonjsMods from './gather-commonjs-mods.js';
+import getLoaderPluginConfig from './get-loader-plugin-config';
 
 export default function(config) {
   const {
     ENV,
-    file,
+    release,
     quick,
+    paths,
     sources,
     isMainTask,
     utils,
     environment,
-    publicPath
+    publicPath,
+    webpackConfig
   } = config;
   const {
     entry,
@@ -24,54 +26,26 @@ export default function(config) {
     buildDir,
     hotPort,
     devHost,
+    libraryName,
     globalBundleName,
-    mainBundleName,
-    libraryName
+    mainBundleName
   } = sources;
+  const {alias} = webpackConfig;
   const {isDev} = environment;
   const {addbase} = utils;
-  const DEBUG = ENV === 'development';
-  const TEST = ENV === 'test';
-  const filename = isDev ? '[name].js' : '[chunkhash]-[name].js';
-  let externals = {
-    jquery: 'window.jQuery',
-    ga: 'window.ga',
-    optimizely: 'window.optimizely'
+  const {jsBundleName} = paths;
+  const externals = {
+    jquery: 'window.jQuery'
   };
 
-  const {rules, configFile} = makeEslintConfig({
-    isDev,
-    lintEnv: 'web'
-  });
-
-  const expose = entry.main.map( fp => {
-    return {
-      libraryName,
-      test: addbase(srcDir, fp)
-    };
-  })[0];
-
-  const {preLoaders, loaders} = makeLoaders({
-    DEBUG,
-    TEST,
-    expose,
-    extract: !isMainTask,
-    quick
-  });
-
-  const plugins = makePlugins({
-    DEBUG,
-    TEST,
-    file,
-    environment,
-    isMainTask
-  });
+  const {
+    preLoaders,
+    loaders,
+    plugins
+  } = getLoaderPluginConfig(config);
 
   const defaultConfig = {
-    externals,
-    module: {
-      loaders: loaders
-    },
+    externals: release ? assign({}, externals, getCommonjsMods()) : externals,
     resolve: {
       extensions: [
         '',
@@ -84,10 +58,7 @@ export default function(config) {
         '.yaml',
         '.yml'
       ],
-      modulesDirectories: ['node_modules', 'src/js'],
-      alias: {
-        fetch: 'isomorphic-fetch'
-      }
+      alias
     },
     node: {
       dns: 'mock',
@@ -96,21 +67,20 @@ export default function(config) {
     }
   };
 
-  let commons = {
+  const commons = {
     vendors: [
-      'react',
+      'lodash',
       'nuclear-js',
-      'nuclear-js-react-addons',
-      'js-cookie'
+      'react'
     ]
   };
 
   const configFn = {
     development(isProd) {
-      let devPlugins = [
+      const devPlugins = [
         new webpack.HotModuleReplacementPlugin()
       ];
-      let hotEntry = [
+      const hotEntry = [
         `webpack-dev-server/client?${devHost}:${hotPort}`,
         'webpack/hot/dev-server',
         'webpack/hot/only-dev-server'
@@ -118,7 +88,7 @@ export default function(config) {
       let taskEntry;
 
       if (isMainTask) {
-        let main = omit(entry, globalBundleName);
+        const main = omit(entry, globalBundleName);
         if (!isProd) {
           commons.vendors.push(...hotEntry);
           plugins.push(...devPlugins);
@@ -128,15 +98,20 @@ export default function(config) {
         taskEntry = omit(entry, mainBundleName);
       }
 
-      let devConfig = {
+      const {rules, configFile} = makeEslintConfig({
+        isDev,
+        lintEnv: 'web'
+      });
+
+      const devConfig = {
         context: addbase(srcDir),
-        cache: DEBUG,
-        debug: DEBUG,
+        cache: isDev,
+        debug: isDev,
         entry: taskEntry,
         output: {
           path: addbase(buildDir),
           publicPath,
-          filename: join('js', filename)
+          filename: join('js', jsBundleName)
         },
         eslint: {
           rules,
@@ -148,8 +123,8 @@ export default function(config) {
           failOnError: !isDev
         },
         module: {
-          preLoaders: preLoaders,
-          loaders: loaders
+          preLoaders,
+          loaders
         },
         plugins,
         postcss: [
@@ -162,8 +137,8 @@ export default function(config) {
     },
 
     production() {
-      let makeDevConfig = this.development;
-      let prodConfig = merge({}, makeDevConfig(true), {
+      const makeDevConfig = this.development;
+      const prodConfig = merge({}, makeDevConfig(true), {
         output: {
           library: libraryName,
           libraryTarget: 'umd'
@@ -187,9 +162,24 @@ export default function(config) {
     },
 
     test() {
-      let testConfig = {
+      const {rules, configFile} = makeEslintConfig({
+        isDev,
+        lintEnv: 'test'
+      });
+
+      const testConfig = {
         module: {
+          preLoaders,
           loaders
+        },
+        eslint: {
+          rules,
+          configFile,
+          formatter,
+          emitError: true,
+          emitWarning: true,
+          failOnWarning: false,
+          failOnError: false
         },
         plugins,
         watch: true,
@@ -200,7 +190,7 @@ export default function(config) {
     },
 
     ci() {
-      let ciConfig = {
+      const ciConfig = {
         // allow getting rid of the UglifyJsPlugin
         // https://github.com/webpack/webpack/issues/1079
         module: {

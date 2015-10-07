@@ -6,29 +6,32 @@ import {readFileSync} from 'fs';
 import path from 'path';
 import {config as njConfig} from './nunjucks-config';
 import Plasma from 'plasma';
+import loader from 'assemble-loader';
 
 export default function(gulp, plugins, config) {
-  const {assemble, browserSync, gulpIf} = plugins;
+  const {app, browserSync, gulpIf} = plugins;
   const {sources, utils, environment} = config;
-  const {srcDir, buildDir, libraryName} = sources;
-  const {addbase} = utils;
+  const {srcDir, scriptDir, buildDir, libraryName} = sources;
+  const {addbase, logError} = utils;
   const {extname} = plugins;
-  const {isDev} = environment;
+  const {isDev, shouldRev} = environment;
   const {requires} = njConfig;
   const userName = process.cwd().split('/')[2];
   const plasma = new Plasma();
   const src = addbase(srcDir, 'templates/pages/**/*.html');
-  //const ogRenameKey = assemble.option('renameKey');
+  //const ogRenameKey = app.option('renameKey');
+
+  app.use(loader());
 
   plasma.dataLoader('yml', function(fp) {
     const str = readFileSync(fp, 'utf8');
     return safeLoad(str);
   });
 
-  assemble.data(plasma.load(addbase('config/**/*.yml'), {namespace: false}));
-  assemble.data({environment});
+  app.data(plasma.load(addbase('config/**/*.yml'), {namespace: false}));
+  app.data({environment});
 
-  assemble.engine('.jsx', function(content, options, fn) {
+  app.engine('.jsx', function(content, options, fn) {
     const compiled = babel.transform(content, {
       stage: 0,
       code: true,
@@ -37,7 +40,7 @@ export default function(gulp, plugins, config) {
     return consolidate.react.render(compiled.code, options, fn);
   });
 
-  assemble.engine('.html', function(content, options, fn) {
+  app.engine('.html', function(content, options, fn) {
     const opts = _.merge({}, options, {
       layouts(fp) {
         return `${addbase(srcDir, 'templates/layouts', fp)}.html`;
@@ -49,20 +52,20 @@ export default function(gulp, plugins, config) {
     return consolidate.nunjucks.render(content, opts, fn);
   });
 
-  assemble.create('snippet');
+  app.create('snippet');
 
-  assemble.option('renameKey', (fp) => {
+  app.option('renameKey', (fp) => {
     const dirname = path.dirname(fp).split('/').slice(-1)[0];
     const basename = path.basename(fp).split('.').slice(0)[0];
     return `${dirname}/${basename}`;
   });
 
-  assemble.snippets(addbase(srcDir, 'js/components/**/*.jsx'));
+  app.snippets.load(addbase(srcDir, scriptDir, 'components/**/*.jsx'));
 
-  if (!isDev) {
-    const manifestData = assemble.get('data').revData;
+  if (!isDev && shouldRev) {
+    app.postRender(/\.html$/, (file, next) => {
+      const manifestData = app.get('cache.data.revData');
 
-    assemble.postRender(/\.html$/, (file, next) => {
       file.content = Object.keys(manifestData).reduce((content, unrevd) => {
         const revd = manifestData[unrevd];
         return /\.map$/.test(revd) ? content : content.replace(new RegExp(unrevd, 'g'), revd);
@@ -72,17 +75,28 @@ export default function(gulp, plugins, config) {
     });
   }
 
-  assemble.task('build', () => {
-    assemble.src(src)
-      .pipe(extname())
-      .pipe(assemble.dest(buildDir))
-      .pipe(gulpIf(isDev, browserSync.stream()))
-      .on('error', (err) => console.log(err));
-  });
+  return (cb) => {
+    app.task('build', () => {
+      return app.src(src)
+        .pipe(app.renderFile())
+        .pipe(extname())
+        .pipe(app.dest(buildDir))
+        .pipe(gulpIf(isDev, browserSync.stream()))
+        .on('error', (err) => {
+          logError({err, plugin: '[assemble]: build'});
+        });
+    });
 
-  assemble.task('watch', ['build'], () => {
-    assemble.watch(addbase(srcDir, 'templates/**/*.html'), ['build']);
-  });
+    app.task('watch', ['build'], () => {
+      app.watch(addbase(srcDir, 'templates/**/*.html'), ['build']);
+      cb();
+    });
 
-  return () => assemble.run(isDev ? ['build', 'watch'] : ['build']);
+    app.run(isDev ? ['watch'] : ['build'], (err) => {
+      if (err) {
+        logError({err, plugin: '[assemble]: run'});
+      }
+      cb();
+    });
+  };
 }

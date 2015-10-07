@@ -1,10 +1,25 @@
 import ExtractTextPlugin from 'extract-text-webpack-plugin';
+import shouldExclude from './exclude-list';
 
 export default function(opts) {
-  const {expose, extract, includePaths, quick, DEBUG, TEST} = opts;
-  const fileLoader = 'file-loader?name=[path][name].[ext]';
+  const {
+    expose,
+    extract,
+    libraryName,
+    paths,
+    sources,
+    quick,
+    DEBUG,
+    TEST
+  } = opts;
+  const {fileLoader} = paths;
+  const {includePaths} = sources;
   let jsLoader = 'babel-loader?optional[]=runtime&stage=0';
   let jsxLoader = [];
+  const jsxProdOpts = [
+    '&optional[]=optimisation.react.inlineElements',
+    'optional[]=optimisation.react.constantElements'
+  ];
   let sassLoader, cssLoader;
 
   let jsonLoader = ['json-loader'];
@@ -29,6 +44,7 @@ export default function(opts) {
       jsLoader += '&plugins=rewire';
     }
 
+    jsxLoader.push(jsLoader);
 
     // TODO: clean this up
     if (extract) {
@@ -52,6 +68,8 @@ export default function(opts) {
       'postcss-loader'
     ].join('!');
   } else {
+    jsxLoader.push(jsLoader + jsxProdOpts.join('&'));
+
     cssLoader = ExtractTextPlugin.extract('style-loader', [
       'css-loader?sourceMap&importLoaders=1&modules&localIdentName=[hash:base64:5]',
       'postcss-loader'
@@ -64,7 +82,6 @@ export default function(opts) {
     ].join('!'));
   }
 
-  jsxLoader.push(jsLoader);
 
   const preLoaders = [
     {
@@ -77,7 +94,7 @@ export default function(opts) {
   let loaders = [
     {
       test: /\.jsx?$/,
-      exclude: /node_modules/,
+      exclude: shouldExclude,
       loaders: jsxLoader
     },
     {
@@ -106,10 +123,8 @@ export default function(opts) {
   }
 
   if (DEBUG || TEST) {
-    let {test, libraryName} = expose;
-
     loaders.unshift({
-      test,
+      expose,
       loader: `expose?${libraryName}`
     });
   }

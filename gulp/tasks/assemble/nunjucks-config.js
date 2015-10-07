@@ -1,12 +1,11 @@
 import nunjucks from 'nunjucks';
 
-const config = {
+export const config = {
   engine: 'nunjucks',
   requires: {
     nunjucks: nunjucks.configure({
-      watch: true
+      watch: false,
+      noCache: true
     })
   }
 };
-
-export {config};
