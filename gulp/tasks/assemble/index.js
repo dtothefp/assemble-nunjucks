@@ -1,4 +1,4 @@
-import babel from 'babel';
+//import babel from 'babel';
 import _ from 'lodash';
 import consolidate from 'consolidate';
 import {safeLoad} from 'js-yaml';
@@ -7,6 +7,7 @@ import path from 'path';
 import {config as njConfig} from './nunjucks-config';
 import Plasma from 'plasma';
 import loader from 'assemble-loader';
+import jsxLoader from './jsx-loader';
 
 export default function(gulp, plugins, config) {
   const {app, browserSync, gulpIf} = plugins;
@@ -31,15 +32,6 @@ export default function(gulp, plugins, config) {
   app.data(plasma.load(addbase('config/**/*.yml'), {namespace: false}));
   app.data({environment});
 
-  app.engine('.jsx', function(content, options, fn) {
-    const compiled = babel.transform(content, {
-      stage: 0,
-      code: true,
-      env: process.env.NODE_ENV
-    });
-    return consolidate.react.render(compiled.code, options, fn);
-  });
-
   app.engine('.html', function(content, options, fn) {
     const opts = _.merge({}, options, {
       layouts(fp) {
@@ -60,8 +52,6 @@ export default function(gulp, plugins, config) {
     return `${dirname}/${basename}`;
   });
 
-  app.snippets.load(addbase(srcDir, scriptDir, 'components/**/*.jsx'));
-
   if (!isDev && shouldRev) {
     app.postRender(/\.html$/, (file, next) => {
       const manifestData = app.get('cache.data.revData');
@@ -75,7 +65,25 @@ export default function(gulp, plugins, config) {
     });
   }
 
+  app.engine('.jsx', consolidate.react);
+  app.snippets.use(jsxLoader(config));
+  app.snippets.load(addbase(srcDir, scriptDir, 'components/**/*.jsx'), function (err) {
+    if (err) {
+      logError({err, plugin: '[assemble]: snippets'})
+    }
+    console.log('snippets loaded', app.views.snippets);
+    app.snippets.getView('foo.jsx')
+      .render(reactData, function (err, view) {
+        if (err) return console.error(err);
+        console.log(view.content);
+      });
+  });
+
   return (cb) => {
+    //app.task('load-snippets', function (done) {
+      //app.snippets.load('path/to/snippets/*.jsx', done);
+    //});
+
     app.task('build', () => {
       return app.src(src)
         .pipe(app.renderFile())
