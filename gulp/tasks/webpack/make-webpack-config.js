@@ -231,6 +231,5 @@ export default function(config) {
     }
   };
 
-  console.log(configFn[ENV]());
   return configFn[ENV]();
 }

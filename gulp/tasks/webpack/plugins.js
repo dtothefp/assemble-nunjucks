@@ -56,37 +56,6 @@ export default function(opts) {
     )
   ];
 
-  function webpackStats() {
-    this.plugin('done', (stats) => {
-      let statsJson = stats.toJson({
-        assets: true,
-        hash: true,
-        version: false,
-        timings: false,
-        chunks: false,
-        children: false,
-        errors: false,
-        chunkModules: false,
-        modules: false,
-        cached: false,
-        reasons: false,
-        source: false,
-        errorDetails: false,
-        chunkOrigins: false,
-        modulesSort: false,
-        chunksSort: false,
-        assetsSort: false
-      });
-
-      const {assetsByChunkName} = statsJson;
-
-      Object.keys(assetsByChunkName).forEach((key) => {
-        console.log(key);
-        console.log('*****************', assetsByChunkName[key], '*****************');
-      });
-    });
-  }
-
   if (!SERVER) {
     plugins.push(
       new ExtractTextPlugin(cssBundleName, {
@@ -110,8 +79,6 @@ export default function(opts) {
       plugins.push(...releasePlugins);
     }
   }
-
-  plugins.push(webpackStats);
 
   return {plugins};
 }

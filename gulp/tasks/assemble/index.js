@@ -1,5 +1,6 @@
 //import babel from 'babel';
 import _ from 'lodash';
+import ReactDOM from 'react-dom';
 import consolidate from 'consolidate';
 import {safeLoad} from 'js-yaml';
 import {readFileSync} from 'fs';
@@ -72,12 +73,12 @@ export default function(gulp, plugins, config) {
       if (err) {
         logError({err, plugin: '[assemble]: snippets'});
       }
-      console.log('snippets loaded', app.views.snippets['components/sample'].content);
-      //app.snippets.getView('foo.jsx')
-        //.render(reactData, function(err, view) {
-          //if (err) return console.error(err);
-          //console.log(view.content);
-        //});
+
+      app.snippets.getView('components/sample')
+        .render({userName: 'DTOTHEFP'}, function(err, view) {
+          if (err) return console.error(err);
+          console.log('****************HTML content*************', view.content);
+        });
     });
 
     //app.task('load-snippets', function (done) {

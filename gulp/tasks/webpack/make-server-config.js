@@ -16,7 +16,8 @@ export default function({config, entry}) {
     output: {
       filename: 'server.[name].js',
       path: addbase(buildDir),
-      publicPath: '/'
+      publicPath: '/',
+      libraryTarget: 'commonjs2'
     },
     externals,
     node: {

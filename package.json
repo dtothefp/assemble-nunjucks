@@ -94,6 +94,7 @@
     "react-addons-test-utils": "^0.14.0-rc1",
     "react-dom": "^0.14.0-rc1",
     "react-hot-loader": "^1.3.0",
+    "react-tools": "^0.13.3",
     "run-sequence": "^1.0.2",
     "sass-loader": "^3.0.0",
     "selenium-standalone": "^4.6.1",
