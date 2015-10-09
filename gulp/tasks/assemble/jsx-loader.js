@@ -2,22 +2,26 @@ import async from 'async';
 import glob from 'globby';
 import MemoryFS from 'memory-fs';
 import webpack from 'webpack';
-import makeWebpackConfig from '../webpack/make-webpack-config';
+import makeWebpackServerConfig from '../webpack/make-server-config';
 
-function _transform(config) {
-  return function(fp, cb) {
+export default function(config) {
+  const {sources, utils} = config;
+  const {buildDir} = sources;
+  const {addbase} = utils;
+
+  function _transform(fp, cb) {
     const fs = new MemoryFS();
-    const compiler = webpack({entry: fp});
+    const webpackConfig = makeWebpackServerConfig({config, entry: fp});
+    const compiler = webpack(webpackConfig);
     compiler.outputFileSystem = fs;
     compiler.run(function(err, stats) {
       if (err) return cb(err);
-      const contents = fs.readFileSync(fp);
-      cb(null, {path: fp, contents: contents});
+      const [bundleName] = fs.readdirSync(addbase(buildDir));
+      const contents = fs.readFileSync(addbase(buildDir, bundleName));
+      cb(null, {path: fp, contents});
     });
-  };
-}
+  }
 
-export default function(config) {
   return function(collection) {
     collection.load = function(patterns, options, cb) {
       if (typeof options === 'function') {
@@ -26,9 +30,9 @@ export default function(config) {
       }
       options = options || {};
       const files = glob.sync(patterns, options);
-      async.map(files, _transform(config), function (err, results) {
+      async.map(files, _transform, function(err, results) {
         if (err) return cb(err);
-        results.forEach(function (file) {
+        results.forEach(function(file) {
           collection.addView(file.path, file);
         });
         cb();

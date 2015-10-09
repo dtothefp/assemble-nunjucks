@@ -13,6 +13,7 @@ export default function(opts) {
     sources,
     release,
     DEBUG,
+    SERVER,
     TEST
   } = opts;
   const {scriptDir} = sources;
@@ -41,9 +42,6 @@ export default function(opts) {
         NODE_ENV: JSON.stringify(DEBUG || TEST ? 'development' : 'production'),
         TEST_FILE: file ? JSON.stringify(file) : null
       }
-    }),
-    new ExtractTextPlugin(cssBundleName, {
-      allChunks: true
     })
   ];
 
@@ -58,21 +56,62 @@ export default function(opts) {
     )
   ];
 
-  if (isMainTask) {
-    plugins.push(...commons);
+  function webpackStats() {
+    this.plugin('done', (stats) => {
+      let statsJson = stats.toJson({
+        assets: true,
+        hash: true,
+        version: false,
+        timings: false,
+        chunks: false,
+        children: false,
+        errors: false,
+        chunkModules: false,
+        modules: false,
+        cached: false,
+        reasons: false,
+        source: false,
+        errorDetails: false,
+        chunkOrigins: false,
+        modulesSort: false,
+        chunksSort: false,
+        assetsSort: false
+      });
+
+      const {assetsByChunkName} = statsJson;
+
+      Object.keys(assetsByChunkName).forEach((key) => {
+        console.log(key);
+        console.log('*****************', assetsByChunkName[key], '*****************');
+      });
+    });
   }
 
-  if (shouldRev) {
-    prodPlugins.push(statsPlugin(app));
+  if (!SERVER) {
+    plugins.push(
+      new ExtractTextPlugin(cssBundleName, {
+        allChunks: true
+      })
+    );
+
+    if (isMainTask) {
+      plugins.push(...commons);
+    }
+
+    if (shouldRev) {
+      prodPlugins.push(statsPlugin(app));
+    }
+
+    if (!DEBUG || !TEST) {
+      plugins.push(...prodPlugins);
+    }
+
+    if (release) {
+      plugins.push(...releasePlugins);
+    }
   }
 
-  if (!DEBUG || !TEST) {
-    plugins.push(...prodPlugins);
-  }
-
-  if (release) {
-    plugins.push(...releasePlugins);
-  }
+  plugins.push(webpackStats);
 
   return {plugins};
 }

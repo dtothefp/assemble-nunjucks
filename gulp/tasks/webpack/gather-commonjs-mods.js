@@ -1,11 +1,11 @@
-import {readdirSync as read} from 'fs';
-import {join} from 'path';
+import {union} from 'lodash';
 
-export default function() {
-  return read(join(process.cwd(), 'node_modules')).reduce((o, mod) => {
-    if (mod !== '.bin') {
-      o[mod] = `commonjs ${mod}`;
-    }
+export default function({pkgConfig, ignore}) {
+  const {dependencies, devDependencies} = pkgConfig;
+  const depKeys = union(dependencies, devDependencies).filter(dep => dep.indexOf(ignore) === -1);
+
+  return depKeys.reduce((o, mod) => {
+    o[mod] = `commonjs ${mod}`;
     return o;
   }, {});
 }

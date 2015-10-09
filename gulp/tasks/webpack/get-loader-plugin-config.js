@@ -13,9 +13,10 @@ export default function(config) {
   const {srcDir, entry} = sources;
   const DEBUG = ENV === 'development';
   const TEST = ENV === 'test';
+  const SERVER = ENV === 'server';
   const extract = !isMainTask;
   const [expose] = entry.main.map( fp => addbase(srcDir, fp) );
-  const sharedConfig = {DEBUG, TEST};
+  const sharedConfig = {DEBUG, TEST, SERVER};
   const loaderConfig = assign({}, config, sharedConfig, {extract, expose});
   const pluginConfig = assign({}, config, sharedConfig);
   const loaders = makeLoaders(loaderConfig);

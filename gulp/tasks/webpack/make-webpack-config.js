@@ -13,6 +13,7 @@ export default function(config) {
     release,
     quick,
     paths,
+    pkg,
     sources,
     isMainTask,
     utils,
@@ -45,7 +46,7 @@ export default function(config) {
   } = getLoaderPluginConfig(config);
 
   const defaultConfig = {
-    externals: release ? assign({}, externals, getCommonjsMods()) : externals,
+    externals: release ? assign({}, externals, getCommonjsMods({pkgConfig: pkg, ignore: '@hfa'})) : externals,
     resolve: {
       extensions: [
         '',
@@ -161,6 +162,23 @@ export default function(config) {
       return prodConfig;
     },
 
+    server() {
+      const baseServerConfig = {
+        context: addbase(srcDir),
+        entry,
+        output: config.output,
+        module: {
+          loaders
+        },
+        externals: assign({}, defaultConfig.externals, config.externals),
+        node: assign({}, defaultConfig.node, config.node),
+        plugins,
+        target: 'node'
+      };
+
+      return assign({}, defaultConfig, baseServerConfig);
+    },
+
     test() {
       const {rules, configFile} = makeEslintConfig({
         isDev,
@@ -213,5 +231,6 @@ export default function(config) {
     }
   };
 
+  console.log(configFn[ENV]());
   return configFn[ENV]();
 }

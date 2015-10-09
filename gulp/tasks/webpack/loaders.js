@@ -1,3 +1,4 @@
+import {join} from 'path';
 import ExtractTextPlugin from 'extract-text-webpack-plugin';
 import shouldExclude from './exclude-list';
 
@@ -10,6 +11,7 @@ export default function(opts) {
     sources,
     quick,
     DEBUG,
+    SERVER,
     TEST
   } = opts;
   const {fileLoader} = paths;
@@ -67,6 +69,12 @@ export default function(opts) {
       'css-loader?sourceMap&importLoaders=1&modules&localIdentName=[name]__[local]___[hash:base64:5]',
       'postcss-loader'
     ].join('!');
+  } else if (SERVER) {
+    const mockStylesLoader = join(__dirname, 'server-styles', 'style-collector') + '!css-loader';
+    cssLoader = mockStylesLoader;
+    sassLoader = mockStylesLoader;
+
+    jsxLoader.push(jsLoader);
   } else {
     jsxLoader.push(jsLoader + jsxProdOpts.join('&'));
 
@@ -81,7 +89,6 @@ export default function(opts) {
       `sass-loader?${sassParams.join('&')}`
     ].join('!'));
   }
-
 
   const preLoaders = [
     {

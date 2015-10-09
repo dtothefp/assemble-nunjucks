@@ -65,21 +65,21 @@ export default function(gulp, plugins, config) {
     });
   }
 
-  app.engine('.jsx', consolidate.react);
-  app.snippets.use(jsxLoader(config));
-  app.snippets.load(addbase(srcDir, scriptDir, 'components/**/*.jsx'), function (err) {
-    if (err) {
-      logError({err, plugin: '[assemble]: snippets'})
-    }
-    console.log('snippets loaded', app.views.snippets);
-    app.snippets.getView('foo.jsx')
-      .render(reactData, function (err, view) {
-        if (err) return console.error(err);
-        console.log(view.content);
-      });
-  });
-
   return (cb) => {
+    app.engine('.jsx', consolidate.react);
+    app.snippets.use(jsxLoader(config));
+    app.snippets.load(addbase(srcDir, scriptDir, 'components/**/*.jsx'), function(err) {
+      if (err) {
+        logError({err, plugin: '[assemble]: snippets'});
+      }
+      console.log('snippets loaded', app.views.snippets['components/sample'].content);
+      //app.snippets.getView('foo.jsx')
+        //.render(reactData, function(err, view) {
+          //if (err) return console.error(err);
+          //console.log(view.content);
+        //});
+    });
+
     //app.task('load-snippets', function (done) {
       //app.snippets.load('path/to/snippets/*.jsx', done);
     //});
